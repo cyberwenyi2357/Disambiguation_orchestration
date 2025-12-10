@@ -1,14 +1,14 @@
 import sqlite3
 import json
 
-DB_PATH = "baseline_results.db"
+DB_PATH = "baseline_results_llama.db"
 
 def view_database(db_path, show_full_answer=False):
-    """查看数据库中的所有内容"""
+    """View all contents in database"""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    # 获取所有记录
+    # Get all records
     cursor.execute("SELECT id, question, llm_answer, uncertainty, evaluation_score, created_at FROM results ORDER BY created_at DESC")
     rows = cursor.fetchall()
     
@@ -41,14 +41,21 @@ def view_database(db_path, show_full_answer=False):
     conn.close()
 
 def view_detailed_record(db_path, record_id=None):
-    """查看单条记录的详细信息"""
+    """View detailed information of a single record"""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    if record_id and record_id.lower() != "latest":
+    if record_id and record_id.lower() == "latest":
+        # Get the latest record
+        cursor.execute("SELECT * FROM results ORDER BY created_at DESC LIMIT 1")
+    elif record_id and record_id.lower() == "first":
+        # Get the first record (sorted by created_at ascending)
+        cursor.execute("SELECT * FROM results ORDER BY created_at ASC LIMIT 1")
+    elif record_id:
+        # Find by ID
         cursor.execute("SELECT * FROM results WHERE id = ?", (str(record_id),))
     else:
-        # 获取最新的一条记录
+        # Default: get the latest record
         cursor.execute("SELECT * FROM results ORDER BY created_at DESC LIMIT 1")
     
     row = cursor.fetchone()
@@ -88,29 +95,30 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         first_arg = sys.argv[1]
         if first_arg == "--full" or first_arg == "-f":
-            # 查看所有记录（完整答案）
+            # View all records (full answers)
             view_database(DB_PATH, show_full_answer=True)
         elif first_arg == "--help" or first_arg == "-h":
-            # 显示帮助信息
+            # Display help information
             print("\nUsage:")
             print("  python view_db_simple.py                    # View all records (truncated answers)")
             print("  python view_db_simple.py --full            # View all records (full answers)")
+            print("  python view_db_simple.py first              # View first record details")
             print("  python view_db_simple.py latest            # View latest record details")
             print("  python view_db_simple.py <id>              # View specific record by ID")
             print()
         else:
-            # 查看指定 ID 的详细记录
+            # View detailed record for specified ID
             record_id = first_arg
             view_detailed_record(DB_PATH, record_id)
     else:
-        # 查看所有记录（默认截断）
+        # View all records (default: truncated)
         view_database(DB_PATH, show_full_answer=False)
         
         print("\n" + "-"*100)
         print("Usage:")
         print("  - View all records (truncated): python view_db_simple.py")
         print("  - View all records (full): python view_db_simple.py --full")
+        print("  - View first record details: python view_db_simple.py first")
         print("  - View latest record details: python view_db_simple.py latest")
         print("  - View specific record by ID: python view_db_simple.py <id>")
         print("-"*100)
-

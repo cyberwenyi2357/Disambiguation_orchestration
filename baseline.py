@@ -7,12 +7,12 @@ from dotenv import load_dotenv
 from datetime import datetime
 
 DATASET_PATH = "train_light.json"
-# 修改该值可以控制要处理的问题数量；设为 None 表示处理全部
+# Modify this value to control the number of questions to process; set to None to process all
 MAX_REQUESTS = 500
 DB_PATH = "baseline_results.db"
 
 def call_gpt4o_mini(prompt):
-    """调用 GPT-4o-mini API"""
+    """Call GPT-4o-mini API"""
     load_dotenv()
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -53,9 +53,9 @@ def call_gpt35_turbo(prompt, return_logprobs=True):
         "temperature": 0.0
     }
     
-    # 添加 logprobs 参数以获取每个 token 的对数概率
+    # Add logprobs parameter to get log probability for each token
     if return_logprobs:
-        data["logprobs"] = True  # 返回每个生成 token 的 logprob
+        data["logprobs"] = True  # Return logprob for each generated token
     
     response = requests.post(url, headers=headers, data=json.dumps(data))
     if response.status_code == 200:
@@ -64,14 +64,14 @@ def call_gpt35_turbo(prompt, return_logprobs=True):
         
         result = {
             "content": choice["message"]["content"],
-            "logprobs": choice.get("logprobs")  # 包含每个 token 的 logprobs 信息
+            "logprobs": choice.get("logprobs")  # Contains logprobs information for each token
         }
         return result
     else:
         raise Exception(f"API returned status code {response.status_code}: {response.text}")
 
 def init_database(db_path):
-    """初始化数据库，创建表结构"""
+    """Initialize database, create table structure"""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
@@ -87,7 +87,7 @@ def init_database(db_path):
         )
     """)
     
-    # 如果表已存在但没有 evaluation_score 列，则添加该列
+    # If table exists but doesn't have evaluation_score column, add it
     cursor.execute("PRAGMA table_info(results)")
     columns = [column[1] for column in cursor.fetchall()]
     if "evaluation_score" not in columns:
@@ -98,11 +98,11 @@ def init_database(db_path):
     print(f"Database initialized: {db_path}\n")
 
 def save_to_database(db_path, entry_id, question, qa_pairs, llm_answer, uncertainty, evaluation_score=None):
-    """保存结果到数据库"""
+    """Save results to database"""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    # 将 qa_pairs 转换为 JSON 字符串
+    # Convert qa_pairs to JSON string
     qa_pairs_json = json.dumps(qa_pairs, ensure_ascii=False)
     
     cursor.execute("""
@@ -116,14 +116,14 @@ def save_to_database(db_path, entry_id, question, qa_pairs, llm_answer, uncertai
     print(f"Data saved to database (ID: {entry_id})\n")
 
 def evaluate_answer(question, qa_pairs, llm_answer):
-    """使用 GPT-4o-mini 对 LLM 答案进行评分"""
+    """Use GPT-4o-mini to score the LLM answer"""
     interpretations_text = "\n".join([
         f"{idx + 1}. Question: {qa.get('question', '')}\n   Answer: {', '.join(qa.get('answer', []))}" 
         for idx, qa in enumerate(qa_pairs)
         if qa.get('question')
     ])
     
-    # 使用字符串格式化而不是 f-string，避免 llm_answer 中的花括号导致错误
+    # Use string formatting instead of f-string to avoid errors from curly braces in llm_answer
     evaluation_prompt = """You are an evaluator. Given an ambiguous question, its possible interpretations with their answers, and an LLM's answer, evaluate whether the LLM answer covers all interpretations.
 
 Ambiguous Question: {question}
@@ -150,7 +150,7 @@ Please evaluate the LLM answer and provide score (1-5):
         llm_answer=llm_answer
     )
     
-    # 打印发送给 LLM 的 evaluation prompt
+    # Print the evaluation prompt sent to LLM
     print("Evaluation Prompt:")
     print("-" * 60)
     print(evaluation_prompt)
@@ -188,13 +188,13 @@ def load_multipleqa_entries(json_path):
                         "id": item.get("id"),
                         "question": ambiguous_question,
                         "interpretations": interpretations,
-                        "qa_pairs": qa_pairs,  # 保存完整的 qa_pairs
+                        "qa_pairs": qa_pairs,  # Save complete qa_pairs
                     }
                 )
     return entries
 
 if __name__ == "__main__":
-    # 初始化数据库
+    # Initialize database
     init_database(DB_PATH)
     
     try:
@@ -234,14 +234,14 @@ if __name__ == "__main__":
             print("\nGPT-3.5-turbo response:")
             print(llm_answer)
             
-            # 计算 uncertainty
+            # Calculate uncertainty
             if result.get("logprobs"):
                 logprobs_data = result["logprobs"]
-                # 从 content 列表中提取每个 token 的 logprob 值
+                # Extract logprob value for each token from content list
                 content_list = logprobs_data.get("content", [])
                 
                 if content_list:
-                    # 提取所有 token 的 logprob 值
+                    # Extract logprob values for all tokens
                     token_logprobs = [
                         item.get("logprob") 
                         for item in content_list 
@@ -249,11 +249,11 @@ if __name__ == "__main__":
                     ]
                     
                     if token_logprobs:
-                        # 计算总和
+                        # Calculate sum
                         LL_sum = sum(token_logprobs)
-                        # 计算平均值
+                        # Calculate average
                         LL_avg = LL_sum / len(token_logprobs)
-                        # 计算 uncertainty
+                        # Calculate uncertainty
                         uncertainty = -LL_avg
                         
                         print(f"\n{'='*60}")
@@ -269,7 +269,7 @@ if __name__ == "__main__":
             else:
                 print("Warning: No logprobs data\n")
             
-            # 使用 GPT-4o-mini 对答案进行评分
+            # Use GPT-4o-mini to score the answer
             if llm_answer and qa_pairs:
                 print("\n" + "="*60)
                 print("Evaluating answer with GPT-4o-mini...")
@@ -280,16 +280,16 @@ if __name__ == "__main__":
                     print(evaluation_result)
                     print("\n" + "="*60 + "\n")
                     
-                    # 从 evaluation_result 中提取分数（可能是 JSON 或纯数字）
+                    # Extract score from evaluation_result (could be JSON or plain number)
                     evaluation_score = None
                     try:
-                        # 尝试解析 JSON
-                        # 提取 JSON 中的 coverage_score
+                        # Try to parse JSON
+                        # Extract coverage_score from JSON
                         json_match = re.search(r'"coverage_score"\s*:\s*(\d+)', evaluation_result)
                         if json_match:
                             evaluation_score = int(json_match.group(1))
                         else:
-                            # 如果不是 JSON，尝试提取第一个数字（1-5）
+                            # If not JSON, try to extract the first number (1-5)
                             score_match = re.search(r'\b([1-5])\b', evaluation_result)
                             if score_match:
                                 evaluation_score = int(score_match.group(1))
@@ -297,7 +297,7 @@ if __name__ == "__main__":
                         print(f"Warning: Could not parse evaluation score: {str(e)}")
                         evaluation_score = None
             
-            # 保存到数据库
+            # Save to database
             save_to_database(
                 DB_PATH,
                 entry["id"],
@@ -310,7 +310,7 @@ if __name__ == "__main__":
         
         except Exception as e:
             print(f"Error: {str(e)}\n")
-            # 即使失败也尝试保存（uncertainty 和 evaluation_score 为 None）
+            # Try to save even if failed (uncertainty and evaluation_score are None)
             save_to_database(
                 DB_PATH,
                 entry["id"],

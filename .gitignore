@@ -44,6 +44,10 @@ ENV/
 *.sqlite
 *.sqlite3
 
+# Large export files
+*_export.json
+clarification_texts_export.json
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
@@ -54,3 +58,10 @@ ENV/
 .DS_Store
 Thumbs.db
 
+compute_embeddings_simple.py
+view_clarification_texts_llama.py
+view_sorted_by_clusters.py
+view_cluster_db.py
+save_sorted_to_cluster_db.py
+save_sorted_cluster_results.py
+./databases/*
